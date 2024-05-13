@@ -1781,7 +1781,7 @@ class GetDistPlotter(_BaseObject):
         self.subplots[:, :] = None
         return self.plot_col, self.plot_row
 
-    def get_param_array(self, root, params: Union[None, str, Sequence] = None, renames: Mapping = None):
+    def get_param_array(self, roots, params: Union[None, str, Sequence] = None, renames: Mapping = None):
         """
         Gets an array of :class:`~.paramnames.ParamInfo` for named params
         in the given `root`.
@@ -1795,14 +1795,31 @@ class GetDistPlotter(_BaseObject):
                         used by the samples
         :return: list of :class:`~.paramnames.ParamInfo` instances for the parameters
         """
-        if hasattr(root, 'param_names'):
-            names = root.param_names
-        elif hasattr(root, 'paramNames'):
-            names = root.paramNames
-        elif hasattr(root, 'names'):
-            names = ParamNames(names=root.names, default=getattr(root, 'dim', 0))
+        if not isinstance(roots, list):
+            roots = [roots]
+
+        if hasattr(roots[0], 'param_names'):
+            names = roots[0].param_names
+        elif hasattr(roots[0], 'paramNames'):
+            names = roots[0].paramNames
+        elif hasattr(roots[0], 'names'):
+            names = ParamNames(names=roots[0].names, default=getattr(roots[0], 'dim', 0))
         else:
-            names = self.param_names_for_root(root)
+            names = self.param_names_for_root(roots[0])
+
+        if len(roots) > 1:
+            for root in roots[1:]:
+                if hasattr(root, 'param_names'):
+                    names_part = root.param_names
+                elif hasattr(root, 'paramNames'):
+                    names_part = root.paramNames
+                elif hasattr(root, 'names'):
+                    names_part = ParamNames(names=root.names, default=getattr(root, 'dim', 0))
+                else:
+                    names_part = self.param_names_for_root(root)
+                for name in names_part.names:
+                    if name.name not in [x.name for x in names.names]:
+                        names.names.append(name)
 
         if params is None or len(params) == 0:
             return names.names
@@ -2376,7 +2393,7 @@ class GetDistPlotter(_BaseObject):
 
         """
         roots = makeList(roots)
-        params = self.get_param_array(roots[0], params)
+        params = self.get_param_array(roots, params)
         plot_col = len(params)
         if plot_3d_with_param is not None:
             col_param = self._check_param(roots[0], plot_3d_with_param)
